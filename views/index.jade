@@ -1,2 +1,4 @@
-h1= title
-p Welcome to #{title}
+#rakugaki(style='positioin:absolute; top: 0; left: 0; height: 500px; width: 1000px')
+script(src='/javascripts/jquery.min.js')
+!= socketIOIncludeTag(settings['socket.io']['host'])
+script(src='/javascripts/rakugaki.js')

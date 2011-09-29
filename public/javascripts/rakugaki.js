@@ -715,6 +715,9 @@ $(function() {
   var namespace = '/rakugaki' + location.pathname.replace(/\/(\..+)?$/, ''),
       area = $('#rakugaki');
 
+  if (namespace.match(/\/rakugaki\/?/))
+    namespace = '/rakugaki/index';
+
   if (isSmartPhone() && parseInt(area.css('height')) > 2000) {
     return;
   }

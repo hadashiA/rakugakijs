@@ -66,6 +66,7 @@ io.configure('development', function() {
 // libs
 
 require('./rakugaki')(app, io, ['index']);
+require('./helpers')(app);
 
 // Routes
 
