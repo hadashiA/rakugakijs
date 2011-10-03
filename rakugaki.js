@@ -42,7 +42,7 @@ var fs     = require('fs'),
       ns = '/rakugaki/' + ns;
 
       var paintersCount = 0,
-          timerID;
+          saveTimerIds = {};
 
       (function(io) {
         io.on('connection', function(socket) {
@@ -61,13 +61,13 @@ var fs     = require('fs'),
             socket.broadcast.volatile.json.emit('stroke end', point);
           });
 
-          socket.on('save', function(dataURL) {
+          socket.on('save', function(name, dataURL) {
             var data = new ImageData(dataURL);
 
             if (data.isPNGBase64Encoded()) {
-              clearTimeout(timerID);
-              timerID = setTimeout(function() {
-                var pngPath = path.resolve(path.join('public', ns)) + '.png';
+              clearTimeout(saveTimerIds[name]);
+              saveTimerIds[name] = setTimeout(function() {
+                var pngPath = path.resolve(path.join('public', ns, name + '.png'));
                 mkdirp(path.dirname(pngPath), 0755, function(err) {
                   if (err) {
                     logger.info(err);

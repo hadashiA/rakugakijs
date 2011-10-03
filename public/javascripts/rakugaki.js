@@ -233,15 +233,19 @@ var RGBAColorDummy = function(rgba) {
   this.rgba = function() { return _rgba; };
 };
 
-var RakugakiWall = function(area, options) {
+var RakugakiWall = function(div, options) {
   if (!options) options = {};
-  area = $(area);
+  var $div = $(div);
 
   var wall   = this,
-      left   = area.position().left,
-      top    = area.position().top,
-      width  = parseInt(area.css('width')),
-      height = parseInt(area.css('height'));
+      left   = $div.position().left,
+      top    = $div.position().top,
+      width  = parseInt($div.css('width')),
+      height = parseInt($div.css('height'));
+
+  this.namespace = '/rakugaki' + location.pathname.replace(/\/(\..+)?$/, '');
+  if (this.namespace.match(/\/rakugaki\/?/))
+    this.namespace = '/rakugaki/index';
 
   this.screenRect = {
     left: left,
@@ -300,10 +304,102 @@ var RakugakiWall = function(area, options) {
     };
   })(3);
 
+  this.panels = new (function (screenWidth, screenHeight) {
+    var rowHeight = 200,
+        colWidth  = 200,
+        _panels   = [];
+    
+    var Panel = function(row, col, rect) {
+      this.row = row;
+      this.col = col;
+
+      this.rect   = rect;
+      this.left   = rect.left;
+      this.top    = rect.top;
+      this.width  = rect.width;
+      this.height = rect.height;
+
+      this.right  = rect.left + rect.width;
+      this.bottom = rect.top + rect.height;
+
+      this.name = this.row + '-' + this.col;
+    };
+
+    Panel.prototype.load = function() {
+      var self = this,
+          img = new Image();
+      // var indicator = $(document.createElement('img'))
+      //   .appendTo('body')
+      //   .attr('src', '/images/loading.gif')
+      //   .css({
+      //     position: 'absolute',
+      //     left: wall.screenRect.left + wall.screenRect.width / 2 + 'px',
+      //     top: wall.screenRect.top + 'px',
+      //     zIndex: 100
+      //   });
+  
+      img.src = wall.namespace + '/' + this.name + '.png';
+      img.onerror = function(e) {
+        // indicator.hide();
+      };
+      img.onload = function() {
+        // indicator.hide();
+        wall.remoteContext().drawImage(img, self.left, self.top);
+      };
+    };
+
+    for (var top = 0, row = 0; top < screenHeight; top += rowHeight, row++) {
+      var height = Math.min(rowHeight, screenHeight - top);
+      _panels[row] = [];
+
+      for (var left = 0, col = 0; left < screenWidth; left += colWidth, col++) {
+        var width = Math.min(colWidth, screenWidth - left);
+
+        _panels[row][col] = new Panel(row, col, {
+          top: top,
+          left: left,
+          width: width,
+          height: height
+        });
+      }
+    }
+
+    this.rows = _panels.length;
+    this.cols = _panels[0].length;
+
+    this.forEach = function(callback) {
+      for (var row = 0; row < this.rows; row++) {
+        for (var col = 0; col < this.cols; col++) {
+          callback(_panels[row][col], row, col);
+        }
+      }
+    };
+
+    this.forEachInRect = function(rect, callback) {
+      var drawnLeft   = rect.left,
+          drawnRight  = drawnLeft + rect.width,
+          drawnTop    = rect.top,
+          drawnBottom = drawnTop + rect.height;
+
+      this.forEach(function(panel, row, col) {
+        if (panel.left   < drawnRight &&
+            panel.right  > drawnLeft &&
+            panel.top    < drawnBottom &&
+            panel.bottom > drawnTop) {
+          callback(panel, row, col);
+        }
+      });
+    };
+  })(width, height);
+
   this.bgColor = options.bgColor || new RGBAColor('white');
 
   // $(this.layers.at(this.layers.size() - 1).canvas)
   //   .css('background-color', this.bgColor.hex());
+
+  this.panels.forEach(function(panel, row, col) {
+    panel.load();
+  });
 };
 
 RakugakiWall.prototype.canPaintThisBrowser = function() {
@@ -334,26 +430,54 @@ RakugakiWall.prototype.remoteContext = function() {
   return this.remoteLayer().canvas.getContext('2d');
 };
 
-RakugakiWall.prototype.generateIntegratedCanvas = function() {
-  var canvas  = document.createElement('canvas'),
-      context = canvas.getContext('2d'),
-      width   = this.screenRect.width,
-      height  = this.screenRect.height;
+RakugakiWall.prototype.generateIntegratedCanvas = function(rect) {
+  if (!rect)
+    rect = {
+      left: 0,
+      top: 0,
+      width: this.screenRect.width,
+      height: this.screenRect.height
+    };
 
-  $(canvas).attr({ width: width, height: height });
+  var saveBufCanvas  = document.createElement('canvas'),
+      saveBufContext = saveBufCanvas.getContext('2d');
+
+  $(saveBufCanvas).attr({ width: rect.width, height: rect.height });
 
   // context.fillStyle = this.bgColor.rgba();
-  // context.fillRect(0, 0, width, height);
+  // context.fillRect(rect.left, rect.top, rect.width, rect.height);
 
-  // for (var i = this.layers.size() - 1; i >= 0; --i) {
-  //   context.drawImage(this.layers.at(i).canvas, 0, 0);
-  // }
+  $.each([
+    this.remoteContext(),
+    this.localContext(),
+    this.frontImageContext()
+  ], function(i, context) {
+    var layerBufCanvas  = document.createElement('canvas'),
+        layerBufContext = layerBufCanvas.getContext('2d'),
+        layerImageData = context.getImageData(
+          rect.left, rect.top,
+          rect.width, rect.height
+        );
 
-  context.drawImage(this.remoteLayer().canvas, 0, 0);
-  context.drawImage(this.localLayer().canvas, 0, 0);
-  context.drawImage(this.frontImageLayer().canvas, 0, 0);
+    $(layerBufCanvas).attr({ width: rect.width, height: rect.height });
+    layerBufContext.putImageData(layerImageData, 0, 0);
+    saveBufContext.drawImage(layerBufCanvas, 0, 0);
+  });
 
-  return canvas;
+  return saveBufCanvas;
+};
+
+RakugakiWall.prototype.save = function(rect, stream) {
+  var self = this;
+
+  console.log(rect);
+  this.panels.forEachInRect(rect, function(panel, row, col) {
+    clearTimeout(panel.timerId);
+    panel.timerId = setTimeout(function() {
+      var dataURL = self.generateIntegratedCanvas(panel.rect).toDataURL();
+      stream.emit('save', panel.name, dataURL);
+    }, 1500);
+  });
 };
 
 var UndoBuffer = function(layer, undoMax) {
@@ -367,7 +491,7 @@ var UndoBuffer = function(layer, undoMax) {
     this.buffers[i] = {};
 };
 
-UndoBuffer.prototype.push = function(area) {
+UndoBuffer.prototype.push = function(rect) {
   var buffer      = this.buffers[this.bufferIndex],
       layer       = this.layer,
       context     = layer.canvas.getContext('2d'),
@@ -377,14 +501,14 @@ UndoBuffer.prototype.push = function(area) {
       width  = layer.width,
       height = layer.height;
 
-  if (area) {
-    buffer.area = area;
-    left   = area.left;
-    top    = area.top;
-    width  = area.width;
-    height = area.height;
+  if (rect) {
+    buffer.rect = rect;
+    left   = rect.left;
+    top    = rect.top;
+    width  = rect.width;
+    height = rect.height;
   } else {
-    buffer.area = { left: left, top: top, width: width, height: height };
+    buffer.rect = { left: left, top: top, width: width, height: height };
   }
 
   buffer.imageData = backContext.getImageData(left, top, width, height);
@@ -405,20 +529,23 @@ UndoBuffer.prototype.canUndo = function() {
 };
 
 UndoBuffer.prototype.pop = function() {
-  if (!this.canUndo()) return;
+  if (!this.canUndo()) return null;
 
   this.bufferIndex = this.bufferIndex ? this.bufferIndex - 1 : this.undoMax - 1;
 
   var buffer      = this.buffers[this.bufferIndex],
       context     = this.layer.canvas.getContext('2d'),
       backContext = this.layer.backCanvas.getContext('2d'),
-      left = buffer.area.left,
-      top  = buffer.area.top;
+      rect = buffer.rect,
+      left = rect.left,
+      top  = rect.top;
   
   context.putImageData(buffer.imageData, left, top);
   backContext.putImageData(buffer.imageData, left, top);
   
   delete buffer.imageData;
+
+  return rect;
 };
 
 UndoBuffer.prototype.clear = function() {
@@ -465,65 +592,21 @@ var PaintToolBase = function() {
   this.stroking = false;
   this.updated = false;
 
-  var _area = null;
-  this.area = function(val) {
+  var _drawnArea = null;
+  this.drawnArea = function(val) {
     if (val) {
-      if (_area) {
-        _area.left   = _area.left   > val.left   ? val.left   : _area.left;
-        _area.top    = _area.top    > val.top    ? val.top    : _area.top;
-        _area.right  = _area.right  < val.right  ? val.right  : _area.right;
-        _area.bottom = _area.bottom < val.bottom ? val.bottom : _area.bottom;
+      if (_drawnArea) {
+        _drawnArea.left   = _drawnArea.left   > val.left   ? val.left   : _drawnArea.left;
+        _drawnArea.top    = _drawnArea.top    > val.top    ? val.top    : _drawnArea.top;
+        _drawnArea.right  = _drawnArea.right  < val.right  ? val.right  : _drawnArea.right;
+        _drawnArea.bottom = _drawnArea.bottom < val.bottom ? val.bottom : _drawnArea.bottom;
       } else {
-        _area = val;
+        _drawnArea = val;
       }
     }
-    return _area;
+    return _drawnArea;
   };
 };
-
-// var Pencil = function(palette) {
-//   this.palette = palette;
-//   this.name = 'pencil';
-// };
-
-// Pencil.prototype = new PaintToolBase();
-
-// Pencil.prototype.startStroke = function(point) {
-//   var palette = this.palette,
-//       context = palette.context;
-
-//   this.stroking = true;
-//   this.prevPoint = point;
-// };
-
-// Pencil.prototype.connectStroke = function(point) {
-//   if (!this.stroking) return false;
-
-//   var palette = this.palette,
-//       context = palette.context,
-//       color   = point.c || palette.color,
-//       size    = point.s || palette.drawSize;
-
-//   context.save();
-//   context.strokeStyle = color.rgba();
-//   context.lineWidth = size;
-//   context.beginPath();
-//   context.moveTo(this.prevPoint.x, this.prevPoint.y);
-//   context.lineTo(point.x, point.y);
-//   context.stroke();
-//   context.closePath();
-//   context.restore();
-
-//   this.prevPoint = point;
-
-//   return true;
-// };
-
-// Pencil.prototype.endStroke = function(point) {
-//   this.stroking = false;
-// };
-
-// Palette.addTool(Pencil);
 
 var Brush = function(palette) {
   this.palette = palette;
@@ -550,7 +633,7 @@ Brush.prototype.drawParticle = function(point) {
   context.fill();
   context.restore();
 
-  this.area({
+  this.drawnArea({
     left: x - size - 1,
     top: y - size - 1,
     right: x + size + 1,
@@ -618,7 +701,7 @@ Brush.prototype.connectStroke = function(point) {
 };
 
 Brush.prototype.endStroke = function(point) {
-  if (this.stroking && this.area()) this.updated = true;
+  if (this.stroking && this.drawnArea()) this.updated = true;
 
   this.stroking = false;
 };
@@ -670,7 +753,7 @@ AirBrush.prototype.drawParticle = function(point) {
   context.fill();
   context.restore();
 
-  this.area({
+  this.drawnArea({
     left: x - size - 1,
     top: y - size - 1,
     right: x + size + 1,
@@ -701,7 +784,7 @@ Eraser.prototype.drawParticle = function(point) {
   context.fill();
   context.restore();
 
-  this.area({
+  this.drawnArea({
     left: x - size - 1,
     top: y - size - 1,
     right: x + size + 1,
@@ -712,39 +795,17 @@ Eraser.prototype.drawParticle = function(point) {
 Palette.addTool(Eraser);
 
 $(function() {
-  var namespace = '/rakugaki' + location.pathname.replace(/\/(\..+)?$/, ''),
-      area = $('#rakugaki');
+  var $div = $('#rakugaki');
 
-  if (namespace.match(/\/rakugaki\/?/))
-    namespace = '/rakugaki/index';
-
-  if (isSmartPhone() && parseInt(area.css('height')) > 2000) {
-    return;
-  }
+  var wall = new RakugakiWall($div);
   
-  var wall = new RakugakiWall(area);
-  
-  if (!wall.canPaintThisBrowser()) {
-    var prevSource = area.html();
-    area.html(
-      $(document.createElement('img'))
-        .attr('src', namespace + '.png')
-        .error(function() {
-          $(this).hide();
-          area.html(prevSource);
-        })
-    );
-
-    return;
-  }
-
   var palette    = new Palette(wall.localContext()),
       undoBuffer = new UndoBuffer(wall.localLayer(), 20),
-      socket        = io.connect(socketIOUrl + namespace),
+      socket        = io.connect(socketIOUrl + wall.namespace),
       remotePalette = new Palette(wall.remoteContext()),
       timerID;
 
-  area.find('img').each(function() {
+  $div.find('img').each(function() {
     var imgTag   = $(this),
         offset   = imgTag.offset(),
         position = imgTag.position(),
@@ -763,26 +824,6 @@ $(function() {
       context.drawImage(img, left, top);
     };
   });
-
-  var img = new Image(),
-      indicator = $(document.createElement('img'))
-        .appendTo('body')
-        .attr('src', '/images/loading.gif')
-        .css({
-          position: 'absolute',
-          left: wall.screenRect.left + wall.screenRect.width / 2 + 'px',
-          top: wall.screenRect.top + 'px',
-          zIndex: 100
-        });
-  
-  img.src = namespace + '.png';
-  img.onerror = function() {
-    indicator.hide();
-  };
-  img.onload = function() {
-    indicator.hide();
-    wall.remoteContext().drawImage(img, 0, 0);
-  };
 
   socket.on('painters count update', function(count) {
     $('.paintersCount').text(count);
@@ -835,11 +876,11 @@ $(function() {
         
         if (tool.updated) {
           var layer = undoBuffer.layer,
-              area   = tool.area(),
-              left   = Math.floor(area.left),
-              top    = Math.floor(area.top),
-              right  = Math.floor(area.right),
-              bottom = Math.floor(area.bottom);
+              drawnArea = tool.drawnArea(),
+              left   = Math.floor(drawnArea.left),
+              top    = Math.floor(drawnArea.top),
+              right  = Math.floor(drawnArea.right),
+              bottom = Math.floor(drawnArea.bottom);
 
           if (left < 0) left = 0;
           if (left > layer.width) left = layer.width;
@@ -854,26 +895,16 @@ $(function() {
           if (bottom > layer.height) bottom = layer.height;
           
           var width  = right - left,
-              height = bottom - top;
+              height = bottom - top,
+              drawnRect = { left: left, top: top, width: width, height: height };
           
           if (width && height) {
-            undoBuffer.push({
-              left: left,
-              top: top,
-              width: width,
-              height: height
-            });
+            undoBuffer.push(drawnRect);
+            wall.save(drawnRect, socket);
           }
           
           tool.updated = false;
-          tool.area(null);
-
-          // save
-          clearTimeout(timerID);
-          timerID = setTimeout(function() {
-            var dataURL = wall.generateIntegratedCanvas().toDataURL();
-            socket.emit('save', dataURL);
-          }, 2000);
+          tool.drawnArea(null);
         }
         
         event.cancelBubble = true;
@@ -884,7 +915,7 @@ $(function() {
   // Menu
   if (isSmartPhone()) return;
 
-  var menu = $(document.createElement('div'))
+  var $menu = $(document.createElement('div'))
         .appendTo($('body'))
         .css({
           position: 'absolute',
@@ -893,11 +924,11 @@ $(function() {
         });
   //
   $(document.createElement('p'))
-    .appendTo(menu)
+    .appendTo($menu)
     .html('現在落書きしている人:<span class="paintersCount">0</span>人');
 
-  var buttons = $(document.createElement('table'))
-        .appendTo(menu)
+  var $buttons = $(document.createElement('table'))
+        .appendTo($menu)
         .addClass('tools');
 
   $.each([
@@ -914,17 +945,17 @@ $(function() {
     '706caa'
     ], function(colorIndex, hex) {
       var color   = new RGBAColor(hex),
-          wrapper = $(document.createElement('tr'))
-            .appendTo(buttons)
+          $wrapper = $(document.createElement('tr'))
+            .appendTo($buttons)
             .addClass('color-' + hex);
 
       $.each(['brush', 'airBrush'], function(toolIndex, toolName) {
-        var button = $(document.createElement('td'))
-              .appendTo(wrapper)
+        var $button = $(document.createElement('td'))
+              .appendTo($wrapper)
               .addClass(toolName),
             iconPath = '/images/rakugaki/' + toolName + '_' + hex,
-            icon = $(document.createElement('img'))
-              .appendTo(button)
+            $icon = $(document.createElement('img'))
+              .appendTo($button)
               .attr('src', iconPath + '.png')
               .click(function(event) {
                 var paletteColor = new RGBAColor(hex);
@@ -933,7 +964,7 @@ $(function() {
                 
                 palette.selectToolByName(toolName);
                 
-                buttons.find('.selected').removeClass('selected');
+                $buttons.find('.selected').removeClass('selected');
                 $(this).addClass('selected');
 
                 $(wall.localLayer().canvas)
@@ -944,23 +975,23 @@ $(function() {
           var paletteColor = new RGBAColor(hex);
           paletteColor.a = palette.color.a;
           palette.color = paletteColor;
-          buttons.find('.selected').removeClass('selected');
-          icon.addClass('selected');
+          $buttons.find('.selected').removeClass('selected');
+          $icon.addClass('selected');
           $(wall.localLayer().canvas)
             .css('cursor', "url('" + iconPath + ".cur') 6 32, crosshair");
         }
       });
     });
 
-  var wrapper = $(document.createElement('tr'))
-        .appendTo(buttons),
-      button = $(document.createElement('td'))
-        .appendTo(wrapper),
-      icon = $(document.createElement('img'))
-        .appendTo(button)
+  var $wrapper = $(document.createElement('tr'))
+        .appendTo($buttons),
+      $button = $(document.createElement('td'))
+        .appendTo($wrapper),
+      $icon = $(document.createElement('img'))
+        .appendTo($button)
         .attr('src', '/images/rakugaki/eraser.png')
           .click(function() {
-            buttons.find('.selected').removeClass('selected');
+            $buttons.find('.selected').removeClass('selected');
             $(this).addClass('selected');
             palette.selectToolByName('eraser');
             $(wall.localLayer().canvas)
@@ -969,17 +1000,12 @@ $(function() {
 
   // Undo Button
   $(document.createElement('button'))
-    .appendTo(menu)
+    .appendTo($menu)
     .addClass('undo')
     .text('取り消す')
     .click(function() {
-      undoBuffer.pop();
-
-      clearTimeout(timerID);
-      timerID = setTimeout(function() {
-        var dataURL = wall.generateIntegratedCanvas().toDataURL();
-        socket.emit('save', dataURL);
-      }, 1500);
+      var rect = undoBuffer.pop();
+      if (rect) wall.save(rect, socket);
 
       return true;
     });

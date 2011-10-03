@@ -5,7 +5,8 @@
 
 var express = require('express'),
     log4js  = require('log4js'),
-    io      = require('socket.io');
+    io      = require('socket.io'),
+    fs      = require('fs');
 
 var app = module.exports = express.createServer();
 
@@ -75,5 +76,11 @@ app.get('/', function(req, res){
   });
 });
 
-app.listen(3000);
-console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
+app.listen(app.settings.listen, function() {
+  if (typeof(app.settings.listen) == 'string') {
+    fs.chmodSync(app.settings.listen, '777');
+  }
+});
+
+console.log("Express server listening on %s in %s mode",
+            app.settings.port, app.settings.env);
