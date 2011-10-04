@@ -802,8 +802,7 @@ $(function() {
   var palette    = new Palette(wall.localContext()),
       undoBuffer = new UndoBuffer(wall.localLayer(), 20),
       socket        = io.connect(socketIOUrl + wall.namespace),
-      remotePalette = new Palette(wall.remoteContext()),
-      timerID;
+      remotePalette = new Palette(wall.remoteContext());
 
   $div.find('img').each(function() {
     var imgTag   = $(this),

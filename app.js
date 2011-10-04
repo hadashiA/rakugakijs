@@ -31,8 +31,8 @@ app.configure('development', function(){
 app.configure('production', function(){
   app.set('listen', './tmp/sockets/express.sock');
   app.set('socket.io', {
-    host: 'hadashikick.jp:6000',
-    listen: 6001
+    host: 'hadashikick.jp:3100',
+    listen: 3101
   });
 
   app.use(log4js.connectLogger(log4js.getLogger('access'), {
@@ -83,4 +83,4 @@ app.listen(app.settings.listen, function() {
 });
 
 console.log("Express server listening on %s in %s mode",
-            app.settings.port, app.settings.env);
+            app.settings.listen, app.settings.env);
