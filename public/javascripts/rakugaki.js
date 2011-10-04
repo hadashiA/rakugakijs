@@ -470,7 +470,6 @@ RakugakiWall.prototype.generateIntegratedCanvas = function(rect) {
 RakugakiWall.prototype.save = function(rect, stream) {
   var self = this;
 
-  console.log(rect);
   this.panels.forEachInRect(rect, function(panel, row, col) {
     clearTimeout(panel.timerId);
     panel.timerId = setTimeout(function() {
