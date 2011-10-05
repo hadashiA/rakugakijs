@@ -576,6 +576,13 @@ Palette.addTool = function(tool) {
 Palette.prototype.selectToolByName = function(name) {
   if (this.currentToolName != name && name in this.tools) {
     this.currentToolName = name;
+
+    var defaultDrawSize = this.tools[name].defaultDrawSize;
+    if (defaultDrawSize) {
+      this.drawSize = defaultDrawSize;
+    } else {
+      this.drawSize = 3;
+    }
   }
 };
 
@@ -682,7 +689,7 @@ Brush.prototype.connectStroke = function(point) {
       length  = Math.sqrt(dx * dx + dy * dy),
       step    = (size + dsize) / 2.5 + 0.75;
 
-  for (var i = 0; i < length; ++i) {
+  for (var i = 0; i < length; i += step) {
     var progress = i / length;
     
     this.drawParticle({
@@ -710,6 +717,7 @@ Palette.addTool(Brush);
 var AirBrush = function(palette) {
   this.palette = palette;
   this.name = 'airBrush';
+  this.defaultDrawSize = 20;
 };
 
 AirBrush.prototype = new Brush();
@@ -722,8 +730,6 @@ AirBrush.prototype.drawParticle = function(point) {
       size    = point.s || palette.drawSize,
       color   = point.c || palette.color;
   
-  if (size < 20) size = 20;
-
   context.save();
   context.beginPath();
 
