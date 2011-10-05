@@ -557,7 +557,7 @@ UndoBuffer.prototype.clear = function() {
 var Palette = function(context) {
   this.context   = context;
   this.tools     = {};
-  this.color    = new RGBAColor('#333', 0.5);
+  this.color    = new RGBAColor('#000000');
   this.drawSize = 3;
 
   for (var i = 0; i < Palette.tools.length; i++) {
@@ -936,7 +936,7 @@ $(function() {
         .addClass('tools');
 
   $.each([
-    '333333',
+    '000000',
     'dcdddd',
     '9ea1a3',
     'd9333f',
