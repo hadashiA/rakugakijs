@@ -1,23 +1,27 @@
-var fs     = require('fs'),
-    path   = require('path'),
-    mkdirp = require('mkdirp'),
-    log4js = require('log4js'),
-    logger = log4js.getLogger('debug');
-
+var fs     = require('fs')
+  , path   = require('path')
+  , mkdirp = require('mkdirp')
+  , log4js = require('log4js')
+  , logger = log4js.getLogger('debug');
+    
 (function() {
   var pngBase64Header = 'data:image/png;base64,';
 
-  var ImageData = function(data) {
-    this.data = data;
-  };
-
-  ImageData.prototype.isPNGBase64Encoded = function() {
-    return this.data && this.data.lastIndexOf(pngBase64Header, 0) == 0;
-  };
-
-  ImageData.prototype.decode = function(data) {
-    return new Buffer(this.data.substr(pngBase64Header.length), 'base64');
-  };
+  var ImageData = (function () { 
+    var self = function(data) {
+      this.data = data;
+    };
+    
+    self.prototype.isPNGBase64Encoded = function() {
+      return this.data && this.data.lastIndexOf(pngBase64Header, 0) == 0;
+    };
+    
+    self.prototype.decode = function(data) {
+      return new Buffer(this.data.substr(pngBase64Header.length), 'base64');
+    };
+    
+    return self;
+  })();
 
   module.exports = function(app, io, paths) {
     function sendPNGByVersion(version, req, res) {
@@ -50,15 +54,15 @@ var fs     = require('fs'),
           io.emit('painters count update', paintersCount);
 
           socket.on('stroke start', function(point) {
-            socket.broadcast.volatile.json.emit('stroke start', point);
+            socket.broadcast.json.emit('stroke start', point);
           });
 
           socket.on('stroke connect', function(point) {
-            socket.broadcast.volatile.json.emit('stroke connect', point);
+            socket.broadcast.json.emit('stroke connect', point);
           });
 
           socket.on('stroke end', function(point) {
-            socket.broadcast.volatile.json.emit('stroke end', point);
+            socket.broadcast.json.emit('stroke end', point);
           });
 
           socket.on('save', function(name, dataURL) {

@@ -808,7 +808,7 @@ $(function() {
       undoBuffer = new UndoBuffer(wall.localLayer(), 20),
       socket        = io.connect(socketIOUrl + wall.namespace),
       remotePalette = new Palette(wall.remoteContext());
-
+  
   $div.find('img').each(function() {
     var imgTag   = $(this),
         offset   = imgTag.offset(),
