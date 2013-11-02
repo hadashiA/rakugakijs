@@ -11,7 +11,7 @@ function getMousePosOnElement(event) {
   };
 }
 
-var RGBAColor = function(colorKeyword, alpha) { 
+var RGBAColor = function(colorKeyword, alpha) {
   if (arguments.length >= 3) {
     this.r = arguments[0];
     this.g = arguments[1];
@@ -169,9 +169,9 @@ var RGBAColor = function(colorKeyword, alpha) {
   };
 
   colorKeyword = colorKeyword.replace(/[#\s]/g, '').toLowerCase();
-  if (colorKeyword in basicColors) 
+  if (colorKeyword in basicColors)
     colorKeyword = basicColors[colorKeyword];
-  
+
   if (colorKeyword.match(/^rgba\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3}),\s*([\d\.]{1,3})\)$/)) {
     rgba = [
       parseInt(RegExp.$1),
@@ -183,13 +183,13 @@ var RGBAColor = function(colorKeyword, alpha) {
     rgba = $.map([1,2,3], function(i) {
       return parseInt(RegExp['$' + i], 16);
     });
-  } else if (colorKeyword.match(/^(\w{1})(\w{1})(\w{1})$/)) { 
+  } else if (colorKeyword.match(/^(\w{1})(\w{1})(\w{1})$/)) {
     rgba = $.map([1,2,3], function(i) {
       var num = RegExp['$' + i];
       return parseInt(num + num, 16);
     });
   }
-  
+
   $.map(rgba, function(num) {
     return (num < 0 || isNaN(num) ? 0 : (num > 255) ? 255 : num);
   });
@@ -274,7 +274,7 @@ var RakugakiWall = function(div, options) {
           zIndex: (90 - z * 2)
         })
         .appendTo($('body'));
-      
+
       this.backCanvas = document.createElement('canvas');
       $(this.backCanvas).attr({
         width: this.width,
@@ -308,7 +308,7 @@ var RakugakiWall = function(div, options) {
     var rowHeight = 200,
         colWidth  = 200,
         _panels   = [];
-    
+
     var Panel = function(row, col, rect) {
       this.row = row;
       this.col = col;
@@ -337,7 +337,7 @@ var RakugakiWall = function(div, options) {
       //     top: wall.screenRect.top + 'px',
       //     zIndex: 100
       //   });
-  
+
       img.src = wall.namespace + '/' + this.name + '.png';
       img.onerror = function(e) {
         // indicator.hide();
@@ -486,7 +486,7 @@ var UndoBuffer = function(layer, undoMax) {
   this.bufferIndexStart = 0;
 
   this.buffers = new Array(undoMax);
-  for (var i = 0; i < undoMax; ++i) 
+  for (var i = 0; i < undoMax; ++i)
     this.buffers[i] = {};
 };
 
@@ -517,9 +517,9 @@ UndoBuffer.prototype.push = function(rect) {
     context.getImageData(left, top, width, height), left, top
   );
   backContext.restore();
-  
+
   this.bufferIndex = (this.bufferIndex + 1) % this.undoMax;
-  if (this.bufferIndex == this.bufferIndexStart) 
+  if (this.bufferIndex == this.bufferIndexStart)
     this.bufferIndexStart = (this.bufferIndexStart + 1) % this.undoMax;
 };
 
@@ -538,10 +538,10 @@ UndoBuffer.prototype.pop = function() {
       rect = buffer.rect,
       left = rect.left,
       top  = rect.top;
-  
+
   context.putImageData(buffer.imageData, left, top);
   backContext.putImageData(buffer.imageData, left, top);
-  
+
   delete buffer.imageData;
 
   return rect;
@@ -589,7 +589,7 @@ Palette.prototype.selectToolByName = function(name) {
 Palette.prototype.tool = function(key) {
   if (!key || !(key in this.tools)) {
     key = this.currentToolName;
-  } 
+  }
   return this.tools[key];
 };
 
@@ -691,7 +691,7 @@ Brush.prototype.connectStroke = function(point) {
 
   for (var i = 0; i < length; i += step) {
     var progress = i / length;
-    
+
     this.drawParticle({
       x: x + dx * progress,
       y: y + dy * progress,
@@ -729,7 +729,7 @@ AirBrush.prototype.drawParticle = function(point) {
       y       = point.y,
       size    = point.s || palette.drawSize,
       color   = point.c || palette.color;
-  
+
   context.save();
   context.beginPath();
 
@@ -803,12 +803,13 @@ $(function() {
   var $div = $('#rakugaki');
 
   var wall = new RakugakiWall($div);
-  
+
+  var socketIOUrl = $div.data('socket');
   var palette    = new Palette(wall.localContext()),
       undoBuffer = new UndoBuffer(wall.localLayer(), 20),
       socket        = io.connect(socketIOUrl + wall.namespace),
       remotePalette = new Palette(wall.remoteContext());
-  
+
   $div.find('img').each(function() {
     var imgTag   = $(this),
         offset   = imgTag.offset(),
@@ -860,7 +861,7 @@ $(function() {
               s: palette.drawSize,
               c: palette.color.json()
             };
-        
+
         switch (event.type) {
         case 'mousedown':
           tool.startStroke(point);
@@ -877,7 +878,7 @@ $(function() {
           tool.connectStroke(point)
             && socket.json.emit('stroke connect', point);
         }
-        
+
         if (tool.updated) {
           var layer = undoBuffer.layer,
               drawnArea = tool.drawnArea(),
@@ -888,34 +889,34 @@ $(function() {
 
           if (left < 0) left = 0;
           if (left > layer.width) left = layer.width;
-          
+
           if (top < 0) top = 0;
           if (top > layer.height) top = layer.height;
-          
+
           if (right < 0) right = 0;
           if (right > layer.width) right = layer.width;
-          
+
           if (bottom < 0) bottom = 0;
           if (bottom > layer.height) bottom = layer.height;
-          
+
           var width  = right - left,
               height = bottom - top,
               drawnRect = { left: left, top: top, width: width, height: height };
-          
+
           if (width && height) {
             undoBuffer.push(drawnRect);
             wall.save(drawnRect, socket);
           }
-          
+
           tool.updated = false;
           tool.drawnArea(null);
         }
-        
+
         event.cancelBubble = true;
         return false;
       });
     });
-  
+
   // Menu
   if (isSmartPhone()) return;
 
@@ -965,16 +966,16 @@ $(function() {
                 var paletteColor = new RGBAColor(hex);
                 paletteColor.a = palette.color.a;
                 palette.color = paletteColor;
-                
+
                 palette.selectToolByName(toolName);
-                
+
                 $buttons.find('.selected').removeClass('selected');
                 $(this).addClass('selected');
 
                 $(wall.localLayer().canvas)
                   .css('cursor', "url('" + iconPath + ".cur') 6 32, crosshair");
               });
-        
+
         if (colorIndex == 0 && toolName == palette.currentToolName) {
           var paletteColor = new RGBAColor(hex);
           paletteColor.a = palette.color.a;
