@@ -1,13 +1,13 @@
 {
-    "name": "rakugakijs"
-  , "version": "0.0.2"
-  , "private": true
-  , "dependencies": {
-      "express": "3.0.0rc4"
-    , "jade": ""
-    , "log4js": ""
-    , "mkdirp": ""
-    , "socket.io": ""
-    , "cli-color": ""
+  "name": "rakugakijs",
+  "version": "0.0.2",
+  "private": true,
+  "dependencies": {
+    "express": "~3.4.4",
+    "log4js": "~0.6.9",
+    "mkdirp": "~0.3.5",
+    "socket.io": "~0.9.16",
+    "cli-color": "~0.2.3",
+    "hbs": "~2.4.0"
   }
 }
